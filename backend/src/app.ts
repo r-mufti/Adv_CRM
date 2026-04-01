@@ -6,12 +6,14 @@ import { router as interactionsRouter } from './modules/interactions/interaction
 import { router as tasksRouter } from './modules/tasks/tasks.routes.js';
 import { router as searchRouter } from './modules/search/search.routes.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { withUser } from './middleware/auth.js';
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+app.use(withUser);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', ts: new Date().toISOString() });

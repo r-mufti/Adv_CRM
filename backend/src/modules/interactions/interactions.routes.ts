@@ -1,11 +1,10 @@
 import { Router } from 'express';
-import { randomUUID } from 'crypto';
 import { z } from 'zod';
-import { interactions } from '../../data/mock-data.js';
-import { Interaction } from '../../types.js';
+import { prisma } from '../../prisma.js';
 
 const interactionSchema = z.object({
-  entityId: z.string(),
+  personId: z.string().optional(),
+  organizationId: z.string().optional(),
   kind: z.enum(['meeting', 'call', 'event', 'note']),
   participants: z.array(z.string()).default([]),
   summary: z.string(),
@@ -16,22 +15,20 @@ const interactionSchema = z.object({
 
 export const router = Router();
 
-router.get('/', (_req, res) => {
-  res.json(interactions);
+router.get('/', async (_req, res, next) => {
+  try {
+    const data = await prisma.interaction.findMany({ orderBy: { createdAt: 'desc' } });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/', (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const parsed = interactionSchema.parse(req.body);
-    const now = new Date().toISOString();
-    const record: Interaction = {
-      id: randomUUID(),
-      ownerId: 'user-1',
-      createdAt: now,
-      updatedAt: now,
-      ...parsed,
-    };
-    interactions.push(record);
+    const ownerId = req.user?.id || 'user-demo';
+    const record = await prisma.interaction.create({ data: { ...parsed, ownerId } });
     res.status(201).json(record);
   } catch (err) {
     next(err);

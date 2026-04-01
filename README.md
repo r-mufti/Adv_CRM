@@ -4,23 +4,46 @@ This repo scaffolds an advanced relationship-centric CRM / directory platform.
 
 ## What's included
 - Node.js + TypeScript Express API scaffold (modular structure)
-- Initial modules: Directory, Interactions, Tasks, Search
-- In-memory demo data + validation via Zod
-- Basic role constants (placeholder for real RBAC)
+- Postgres + Prisma models for people, organizations, interactions, tasks, users
+- Basic auth/RBAC hooks (header-based demo; replace with real JWT/SSO)
+- Modules: Directory, Interactions, Tasks, Search
+- Validation via Zod
 - Healthcheck + error handling middleware
+- Docker Compose with Postgres + Adminer
 
-## Quick start
+## Getting started (dev)
 ```bash
+# 1) start Postgres
+docker-compose up -d
+
+# 2) env
 cd backend
+cp .env.example .env
+
+# 3) install deps & generate client
 npm install
+npm run prisma:generate
+
+# 4) create/migrate schema
+npm run prisma:migrate
+
+# 5) start API
 npm run dev
 ```
-Then visit http://localhost:4000/health.
+Health check: http://localhost:4000/health
 
-## Next steps
-- Add Postgres + Prisma (or TypeORM) with Row-Level Security policies
-- Implement real RBAC + auth (JWT/SSO) and field-level masking
-- Wire Elasticsearch/OpenSearch for search endpoints
-- Add workflow engine + notifications
+### Auth placeholder
+Requests read `x-user-id` and `x-user-role` headers (roles: super_admin, org_admin, department_head, manager, staff, viewer, external). Replace `middleware/auth.ts` with real JWT/SSO and tie to `User` table.
+
+### Prisma schema snapshot
+Located at `backend/prisma/schema.prisma`; includes enums for Visibility, TaskStatus, InteractionKind, Role.
+
+### Search
+Simple contains-based filtering via Prisma; replace with OpenSearch for scale and relevance.
+
+### Next steps
+- Seed data and add migrations for indices/performance
+- Add Row-Level Security policies (Postgres) and field-level masking in queries
+- Add workflow engine + notifications via job queue (Redis)
 - Build Next.js frontend (split-pane list/detail, command palette, saved views)
-- Add CI/CD, tests, and infra-as-code
+- Add CI/CD, tests, and IaC

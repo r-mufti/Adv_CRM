@@ -1,47 +1,37 @@
 import { Router } from 'express';
-import { randomUUID } from 'crypto';
-import { people, orgs } from '../../data/mock-data.js';
 import { personSchema, orgSchema } from './directory.schema.js';
-import { Person, Organization } from '../../types.js';
+import { prisma } from '../../prisma.js';
 
 export const router = Router();
 
-router.get('/', (_req, res) => {
-  res.json({ people, orgs });
+router.get('/', async (_req, res, next) => {
+  try {
+    const [people, orgs] = await Promise.all([
+      prisma.person.findMany({ orderBy: { createdAt: 'desc' } }),
+      prisma.organization.findMany({ orderBy: { createdAt: 'desc' } }),
+    ]);
+    res.json({ people, orgs });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/people', (req, res, next) => {
+router.post('/people', async (req, res, next) => {
   try {
     const parsed = personSchema.parse(req.body);
-    const now = new Date().toISOString();
-    const person: Person = {
-      id: randomUUID(),
-      type: 'person',
-      ownerId: 'user-1',
-      createdAt: now,
-      updatedAt: now,
-      ...parsed,
-    };
-    people.push(person);
+    const ownerId = req.user?.id || 'user-demo';
+    const person = await prisma.person.create({ data: { ...parsed, ownerId } });
     res.status(201).json(person);
   } catch (err) {
     next(err);
   }
 });
 
-router.post('/orgs', (req, res, next) => {
+router.post('/orgs', async (req, res, next) => {
   try {
     const parsed = orgSchema.parse(req.body);
-    const now = new Date().toISOString();
-    const org: Organization = {
-      id: randomUUID(),
-      type: 'organization',
-      ownerId: 'user-1',
-      createdAt: now,
-      updatedAt: now,
-      ...parsed,
-    };
-    orgs.push(org);
+    const ownerId = req.user?.id || 'user-demo';
+    const org = await prisma.organization.create({ data: { ...parsed, ownerId } });
     res.status(201).json(org);
   } catch (err) {
     next(err);

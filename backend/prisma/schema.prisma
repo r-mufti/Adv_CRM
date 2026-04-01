@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Visibility {
+  private
+  team
+  org
+  public
+}
+
+enum TaskStatus {
+  todo
+  in_progress
+  done
+}
+
+enum InteractionKind {
+  meeting
+  call
+  event
+  note
+}
+
+enum Role {
+  super_admin
+  org_admin
+  department_head
+  manager
+  staff
+  viewer
+  external
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      Role     @default(viewer)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  persons   Person[] @relation("PersonOwner")
+  orgs      Organization[] @relation("OrgOwner")
+  tasks     Task[] @relation("TaskOwner")
+  interactions Interaction[] @relation("InteractionOwner")
+}
+
+model Person {
+  id          String       @id @default(uuid())
+  name        String
+  email       String?      @unique
+  phone       String?
+  role        String?
+  department  String?
+  location    String?
+  tags        String[]     @default([])
+  visibility  Visibility   @default(org)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  ownerId     String
+  owner       User         @relation("PersonOwner", fields: [ownerId], references: [id])
+
+  interactions Interaction[]
+  tasks        Task[] @relation("TaskPerson")
+}
+
+model Organization {
+  id         String     @id @default(uuid())
+  name       String
+  category   String?
+  region     String?
+  tags       String[]   @default([])
+  visibility Visibility @default(org)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  ownerId    String
+  owner      User       @relation("OrgOwner", fields: [ownerId], references: [id])
+
+  interactions Interaction[]
+  tasks        Task[] @relation("TaskOrg")
+}
+
+model Interaction {
+  id              String           @id @default(uuid())
+  kind            InteractionKind
+  summary         String
+  participants    String[]         @default([])
+  followUpDate    DateTime?
+  attachments     String[]         @default([])
+  visibility      Visibility       @default(team)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  ownerId         String
+  owner           User             @relation("InteractionOwner", fields: [ownerId], references: [id])
+
+  personId        String?
+  person          Person?          @relation(fields: [personId], references: [id])
+
+  organizationId  String?
+  organization    Organization?    @relation(fields: [organizationId], references: [id])
+}
+
+model Task {
+  id                String      @id @default(uuid())
+  title             String
+  description       String?
+  dueDate           DateTime?
+  status            TaskStatus  @default(todo)
+  assigneeId        String?
+  assignee          Person?     @relation("TaskPerson", fields: [assigneeId], references: [id])
+  relatedPersonId   String?
+  relatedPerson     Person?     @relation("TaskRelatedPerson", fields: [relatedPersonId], references: [id])
+  relatedOrgId      String?
+  relatedOrg        Organization? @relation("TaskOrg", fields: [relatedOrgId], references: [id])
+  visibility        Visibility  @default(team)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  ownerId           String
+  owner             User        @relation("TaskOwner", fields: [ownerId], references: [id])
+}

@@ -1,15 +1,41 @@
 import { Router } from 'express';
-import { people, orgs, interactions, tasks } from '../../data/mock-data.js';
+import { prisma } from '../../prisma.js';
 
 export const router = Router();
 
-router.get('/', (req, res) => {
-  const q = (req.query.q as string)?.toLowerCase() || '';
-  const results = {
-    people: people.filter((p) => p.name.toLowerCase().includes(q) || p.tags.some((t) => t.toLowerCase().includes(q))),
-    orgs: orgs.filter((o) => o.name.toLowerCase().includes(q) || o.tags.some((t) => t.toLowerCase().includes(q))),
-    interactions: interactions.filter((i) => i.summary.toLowerCase().includes(q)),
-    tasks: tasks.filter((t) => t.title.toLowerCase().includes(q)),
-  };
-  res.json({ q, results });
+router.get('/', async (req, res, next) => {
+  try {
+    const q = (req.query.q as string)?.trim();
+    if (!q) {
+      return res.json({ q: '', results: { people: [], orgs: [], interactions: [], tasks: [] } });
+    }
+    const people = await prisma.person.findMany({
+      where: {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { tags: { has: q } },
+          { department: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+    });
+    const orgs = await prisma.organization.findMany({
+      where: {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { tags: { has: q } },
+          { category: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+    });
+    const interactions = await prisma.interaction.findMany({
+      where: { summary: { contains: q, mode: 'insensitive' } },
+    });
+    const tasks = await prisma.task.findMany({
+      where: { title: { contains: q, mode: 'insensitive' } },
+    });
+
+    res.json({ q, results: { people, orgs, interactions, tasks } });
+  } catch (err) {
+    next(err);
+  }
 });
